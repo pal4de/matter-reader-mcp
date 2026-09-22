@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "matter-reader-mcp",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-21",
+  "vars": {
+    "READ_ONLY": "false"
+  },
+  "secrets": {
+    "required": [
+      "MATTER_API_TOKEN"
+    ]
+  }
+}
