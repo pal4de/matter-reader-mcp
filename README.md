@@ -147,3 +147,7 @@ The CLI's terminal UI dependencies remain in the installation tree, including pa
 Small fixes and reproducible bug reports are welcome in [GitHub Issues](https://github.com/pal4de/matter-reader-mcp/issues). Include the failing step, error message, and client used. Remove tokens, account details, and private reading content before posting.
 
 This project aims to stay a thin wrapper around the official Matter CLI client. There is no hosted service or support SLA.
+
+## License
+
+[MIT](LICENSE). Dependencies retain their respective licenses.
