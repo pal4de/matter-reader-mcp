@@ -1,6 +1,6 @@
 # Matter MCP design
 
-Updated: 2026-09-21. Initial implementation exists. Cloud deployment and live ChatGPT connectivity have not been verified.
+Updated: 2026-09-23. The maintainer reports a successful Cloudflare deployment and ChatGPT connection. Full tool coverage, token refresh, CPU usage, and fresh-account onboarding remain unverified.
 
 ## Scope
 
@@ -80,12 +80,7 @@ The API client supports tag pagination and note:null beyond the initial CLI surf
 
 ## Distribution and onboarding
 
-Distribute a public Git repository with a Deploy to Cloudflare button once the repository URL is available.
-
-1. Choose the Worker hostname and prepare a hostname-based Access application before deployment.
-2. Allow the owner's email, enable Managed OAuth, and prepare the Matter API token.
-3. Supply the Matter token through the Deploy button form, or deploy code and secrets together with Wrangler --secrets-file.
-4. Register the deployed /mcp URL in ChatGPT and verify account and item reads.
+Distribute this public Git repository with a Deploy to Cloudflare button. Follow the [README](../README.md) for the current deployment and Access setup steps. The button provisions the Worker; the owner configures Access and Managed OAuth separately.
 
 Declare required secret names using Wrangler's secrets.required. Use .dev.vars.example and package.json binding descriptions for Cloudflare's standard deployment form. Runtime rejection remains a fallback, not a required onboarding stage.
 
@@ -95,7 +90,7 @@ Access applications are not included in the Deploy button's documented automatic
 
 Target the Workers free tier, subject to CPU measurement of MCP initialization, schema creation, Access-context checks, and response processing. Containers are not required. Matter and Access requirements apply separately.
 
-Type checking, five tests, and Worker bundling pass with the Access-context implementation. Tests mock ctx.access; production Access behavior still needs a live check. Remaining verification includes live Matter operations, deployed CPU use, ChatGPT/Managed OAuth compatibility, and the complete deployment flow. Required-secret deployment checks do not validate the Matter token or the Access policy.
+Type checking, five tests, and Worker bundling pass with the Access-context implementation. Tests mock ctx.access; production Access behavior still needs a live check. Remaining verification includes live Matter operations, deployed CPU use, token refresh and reproducibility of the complete deployment flow. Required-secret deployment checks do not validate the Matter token or the Access policy.
 
 ## Implementation
 

@@ -4,6 +4,24 @@ A self-hosted MCP server for using your Matter account from ChatGPT Developer Mo
 
 The server imports the API client from the official [Matter CLI](https://github.com/getmatterapp/matter-cli). It does not start a CLI process or container. The Streamable HTTP endpoint is `/mcp`.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pal4de/matter-reader-mcp)
+
+An independent community project, not an official Matter integration. Deploy your own instance; there is no shared hosted service.
+
+## What you can do
+
+Ask ChatGPT to search your saved reading, retrieve highlights, or organize your queue. For example:
+
+- "Find articles I saved about local-first software."
+- "Show my highlights from this article."
+- "Save this URL to my Matter queue."
+
+Seventeen tools cover items, annotations, tags, search, reading sessions, and account information. Set `READ_ONLY` to `true` to expose only the eight read tools. Writes are enabled by default. See the [tool reference](docs/design.md#tool-mapping) for exact coverage.
+
+You need a Matter API token, a Cloudflare account with Access, and ChatGPT Developer Mode. Obtain your Matter token through the official [Matter CLI login flow](https://github.com/getmatterapp/matter-cli#auth). The server itself does not require installing the CLI.
+
+**Start here:** deploy the Worker, protect all traffic with Access, then connect ChatGPT. The Deploy button creates the Worker project; Access and OAuth still need manual setup. A custom domain is optional: a `workers.dev` address works.
+
 ## Local checks
 
 Use Node.js 22 or later.
@@ -19,13 +37,24 @@ The CLI's other dependencies are installed, but only referenced modules are bund
 
 ## Set up Cloudflare Access
 
-Cloudflare **Workers** runs the server. Cloudflare **Access** controls who may connect and handles OAuth. Prepare Access before deploying the server:
+Cloudflare **Workers** runs the server. Cloudflare **Access** controls who may connect and handles OAuth. You can configure Access after deployment using the Worker dashboard:
 
-1. Create a Cloudflare account and set up a Zero Trust organization.
-2. Choose the Worker name and its final hostname, for example `matter-reader-mcp.<your-workers-subdomain>.workers.dev`. Find or configure your Workers subdomain in the Cloudflare dashboard. Keep this name when deploying.
-3. In Zero Trust, create a **self-hosted Access application** for that hostname. Use a hostname destination so it can be configured before the Worker exists. Add an Allow policy for your own email address.
-4. Enable **Managed OAuth** in the application's advanced settings. A browser-only Access login is not sufficient for an MCP client.
+1. Create a Cloudflare account and set up a Zero Trust organization if prompted.
+2. After deploying, open the Worker → **Access** → **Manage Worker access**. Select **All traffic**, not just previews.
+3. Allow only your own email. The preconfigured **Cloudflare account members** policy is also suitable if you intend every member of your Cloudflare account to access this Matter account.
+4. Open the linked Access application → **Additional settings** → **OAuth**, enable **Managed OAuth**, and save. Some dashboard versions call this tab **Advanced settings**.
+5. Add these **Allowed redirect URIs** for ChatGPT and save:
 
+   ```text
+   https://chatgpt.com/connector/oauth/*
+   https://chatgpt.com/connector_platform_oauth_redirect
+   ```
+
+   Cloudflare supports a trailing `/*`. ChatGPT uses either a callback-specific URI or the stable URI depending on the authorization server's issuer-identification support. Once available, you can narrow the allowlist to the exact callback shown in ChatGPT's management page. See [OpenAI authentication](https://developers.openai.com/plugins/build/auth).
+
+Localhost and loopback redirects are unnecessary for ChatGPT. The default 15-minute access token lifetime is suitable; the grant session duration determines when you must authorize again. A 24-hour grant works but requires more frequent reauthorization.
+
+Until Access is configured, the Worker rejects tool requests because `ctx.access` is missing.
 
 See [Managed OAuth](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/managed-oauth/) for the current dashboard instructions.
 
@@ -42,7 +71,7 @@ The only required secret is `MATTER_API_TOKEN`, declared in `wrangler.jsonc`. Wr
 
 ### From your terminal
 
-Set the Worker name in `wrangler.jsonc` to the name chosen above. Copy the example file and fill in the token locally:
+Clone this repository, run `npm ci --ignore-scripts`, and choose the Worker name in `wrangler.jsonc`. Copy the example file and fill in the token locally:
 
 ```sh
 cp .dev.vars.example .dev.vars
@@ -56,15 +85,18 @@ Subsequent code-only deployments can use `npm run deploy`, preserving existing s
 
 ### Deploy to Cloudflare button
 
-Once a public repository URL is available, a Deploy to Cloudflare button can be added. Its standard setup form reads secret names from `.dev.vars.example` and descriptions from `package.json`. Enter your Matter token and keep the hostname consistent with the Access application.
+Use the Deploy button at the top of this README. Cloudflare builds and deploys the project in its hosted build environment. Enter `MATTER_API_TOKEN` when prompted. Keep the default deploy command `npx wrangler deploy`; no separate build command is required.
 
-The button does not provision the Access application or its policy. Complete that setup first. No custom setup service, GitHub Actions workflow, or infrastructure automation is required.
+If deployment fails with **required secrets have not been set: MATTER_API_TOKEN**, open the Worker's **Settings → Variables and Secrets**, add `MATTER_API_TOKEN` as a **Secret**, save/deploy the setting, and retry the build. A build environment variable is not a runtime Worker secret.
 
+Then complete [Cloudflare Access setup](#set-up-cloudflare-access). The button does not create the Access policy or configure Managed OAuth.
 See [Deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/) and [deploying secrets with code](https://developers.cloudflare.com/workers/configuration/secrets/#upload-secrets-alongside-code).
 
 ## Connect ChatGPT
 
-Register `https://<worker-host>/mcp` as an OAuth connection in ChatGPT Developer Mode. If redirect registration is required, use the exact URL shown by ChatGPT. Call `account` and `items_list` to verify the connection.
+Register `https://<worker-host>/mcp` as an OAuth connection in ChatGPT Developer Mode. Accept the trust acknowledgement, create the app, and sign in through Cloudflare Access. Call `account` and `items_list` to verify the connection.
+
+Managed OAuth advertises dynamic client registration, so a compatible client can obtain its own Client ID. If ChatGPT instead asks for a Client ID, check that Managed OAuth was saved and that OAuth discovery is reachable, then reopen the creation form. Do not enter the Matter token or Cloudflare AUD as an OAuth Client ID. The exact recovery for this onboarding error has not yet been documented.
 
 The Worker requires Cloudflare's trusted `ctx.access` context. Access handles authentication and authorization; the Worker does not parse authentication headers or validate JWTs itself. No team domain or audience setting is required in the Worker.
 
@@ -72,7 +104,7 @@ The Access policy that applies to the incoming URL is the authorization boundary
 
 This assumes direct invocation of the Worker through Access. Access context is not forwarded through Service Bindings or a Static Assets router; those are not part of this deployment. See [Access context](https://developers.cloudflare.com/workers/configuration/cloudflare-access/#read-authenticated-user-identity-with-ctxaccess).
 
-The end-to-end ChatGPT and Access Managed OAuth connection has not yet been tested on a deployed instance.
+The maintainer reported a successful deployed ChatGPT connection on September 23, 2026. The Deploy button path and onboarding on a fresh Cloudflare account have not yet been independently verified.
 
 ## Behavior and limitations
 
@@ -106,6 +138,12 @@ Run `npm run dev` with a local Matter token. This simulates authentication only 
 
 Type checking, five tests, and a Wrangler dry-run pass with the Access-context implementation. Tests cover missing Access context, forged authentication headers, authenticated HTTP calls, Origin validation, read-only mode, false/zero updates, and 204/429 responses.
 
-Unit tests supply a mock Access context; they do not verify Cloudflare's live authentication. Live Matter operations, deployed CPU usage, and the complete ChatGPT/Managed OAuth onboarding flow remain unverified.
+Unit tests supply a mock Access context; they do not verify Cloudflare's live authentication. A deployed ChatGPT connection has been reported by the maintainer. Full live tool coverage, deployed CPU usage, token refresh, and reproducibility of the onboarding flow remain unverified.
 
 The CLI's terminal UI dependencies remain in the installation tree, including packages reported by npm audit. They are not imported by the Worker. The Worker uses only the CLI's API client and version module.
+
+## Feedback
+
+Small fixes and reproducible bug reports are welcome in [GitHub Issues](https://github.com/pal4de/matter-reader-mcp/issues). Include the failing step, error message, and client used. Remove tokens, account details, and private reading content before posting.
+
+This project aims to stay a thin wrapper around the official Matter CLI client. There is no hosted service or support SLA.
