@@ -19,20 +19,6 @@ export default {
     const server = createServer(env.MATTER_API_TOKEN, env.READ_ONLY === "true");
     const transport = new WebStandardStreamableHTTPServerTransport({sessionIdGenerator:undefined, enableJsonResponse:true});
     await server.connect(transport);
-    const response = await transport.handleRequest(request);
-    if (request.headers.get("mcp-method") === "server/discover") {
-      try {
-        console.log("MCP discovery response", {
-          status: response.status,
-          protocolVersion: request.headers.get("mcp-protocol-version"),
-          rayId: request.headers.get("cf-ray"),
-          body: await response.clone().text()
-        });
-      } catch {
-        // Diagnostics must not replace an otherwise valid MCP response.
-        console.warn("Unable to log MCP discovery response");
-      }
-    }
-    return response;
+    return transport.handleRequest(request);
   }
 };
