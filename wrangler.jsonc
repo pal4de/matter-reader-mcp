@@ -10,5 +10,11 @@
     "required": [
       "MATTER_API_TOKEN"
     ]
+  },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
   }
 }
